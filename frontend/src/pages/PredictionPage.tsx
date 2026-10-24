@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
+import { useAuth } from '@/context/AuthContext';
 import { PredictionInput, PredictionResponse, FactoryAsset } from '@/types';
 import { kelvinToCelsius, celsiusToKelvin, formatWatts } from '@/utils/formatters';
 import {
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 
 export const PredictionPage: React.FC = () => {
+  const { hasRole } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const assetIdParam = searchParams.get('asset_id');
@@ -88,7 +90,7 @@ export const PredictionPage: React.FC = () => {
         notes: notes || undefined,
       };
 
-      const res = await api.predict(payload, true);
+      const res = await api.predict(payload, hasRole(['admin', 'technician']));
       setResult(res);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Inference request failed');

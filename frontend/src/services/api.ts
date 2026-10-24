@@ -140,7 +140,7 @@ class ApiClient {
   }
 
   // --- PREDICTIONS ---
-  async predict(input: PredictionInput, saveToDb = !!localStorage.getItem('mm360_token')): Promise<PredictionResponse> {
+  async predict(input: PredictionInput, saveToDb = false): Promise<PredictionResponse> {
     return this.request(`/predict?save_to_db=${saveToDb}`, {
       method: 'POST',
       headers: this.getHeaders(),
