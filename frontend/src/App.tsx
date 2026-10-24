@@ -5,6 +5,8 @@ import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { Layout } from './components/layout/Layout';
 
+import { LoginPage } from './pages/LoginPage';
+
 // Pages
 import { DashboardPage } from './pages/DashboardPage';
 import { MachinesPage } from './pages/MachinesPage';
@@ -38,6 +40,7 @@ export const App: React.FC = () => {
             <Routes>
               <Route path="/" element={<Layout />}>
                 <Route index element={<DashboardPage />} />
+                <Route path="login" element={<LoginPage />} />
                 <Route path="machines" element={<MachinesPage />} />
                 <Route path="predict" element={<PredictionPage />} />
                 <Route path="diagnosis" element={<FaultDiagnosisPage />} />
