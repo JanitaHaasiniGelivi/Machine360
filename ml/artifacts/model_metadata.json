@@ -1,0 +1,88 @@
+{
+  "model_version": "1.0.0",
+  "algorithm": "RandomForestClassifier",
+  "trained_at": "2026-10-24T09:45:15.788684+00:00",
+  "decision_threshold": 0.5138686019321503,
+  "input_features": [
+    "Type",
+    "Air temperature [K]",
+    "Process temperature [K]",
+    "Rotational speed [rpm]",
+    "Torque [Nm]",
+    "Tool wear [min]"
+  ],
+  "transformed_features": [
+    "Type_L",
+    "Type_M",
+    "Type_H",
+    "Air temperature [K]",
+    "Process temperature [K]",
+    "Rotational speed [rpm]",
+    "Torque [Nm]",
+    "Tool wear [min]"
+  ],
+  "metrics": {
+    "accuracy": 0.982,
+    "precision": 0.7857142857142857,
+    "recall": 0.6470588235294118,
+    "f1": 0.7096774193548387,
+    "roc_auc": 0.9619793569601753,
+    "pr_auc": 0.7197682370052533,
+    "confusion_matrix": {
+      "true_negative": 1920,
+      "false_positive": 12,
+      "false_negative": 24,
+      "true_positive": 44
+    },
+    "positive_class_prevalence": 0.034,
+    "cv_roc_auc_mean": 0.9706,
+    "cv_roc_auc_std": 0.0104
+  },
+  "feature_importances": {
+    "Rotational speed [rpm]": 0.30607607546814153,
+    "Torque [Nm]": 0.2966534695199902,
+    "Tool wear [min]": 0.20383013501705707,
+    "Air temperature [K]": 0.1025803321415798,
+    "Process temperature [K]": 0.07075987623794022,
+    "Type_L": 0.009101708414535102,
+    "Type_M": 0.006497524861449614,
+    "Type_H": 0.004500878339306435
+  },
+  "fault_models_metrics": {
+    "TWF": {
+      "roc_auc": 0.9586,
+      "f1": 0.0968,
+      "positive_count_in_test": 9
+    },
+    "HDF": {
+      "roc_auc": 0.9712,
+      "f1": 0.6897,
+      "positive_count_in_test": 23
+    },
+    "PWF": {
+      "roc_auc": 0.9974,
+      "f1": 0.7234,
+      "positive_count_in_test": 19
+    },
+    "OSF": {
+      "roc_auc": 0.9875,
+      "f1": 0.48,
+      "positive_count_in_test": 20
+    },
+    "RNF": {
+      "roc_auc": 0.6349,
+      "f1": 0.0,
+      "positive_count_in_test": 4
+    }
+  },
+  "baseline_comparison": {
+    "logistic_regression": {
+      "roc_auc": 0.907,
+      "f1": 0.2419
+    },
+    "random_forest": {
+      "roc_auc": 0.962,
+      "f1": 0.7097
+    }
+  }
+}
