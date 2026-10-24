@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
+import { useAuth } from '@/context/AuthContext';
 import { PredictionInput, PredictionResponse, FactoryAsset } from '@/types';
 import { kelvinToCelsius, celsiusToKelvin, formatWatts } from '@/utils/formatters';
 import {
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 
 export const PredictionPage: React.FC = () => {
+  const { hasRole } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const assetIdParam = searchParams.get('asset_id');
@@ -88,7 +90,7 @@ export const PredictionPage: React.FC = () => {
         notes: notes || undefined,
       };
 
-      const res = await api.predict(payload, true);
+      const res = await api.predict(payload, hasRole(['admin', 'technician']));
       setResult(res);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Inference request failed');
@@ -561,7 +563,7 @@ export const PredictionPage: React.FC = () => {
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 <button
                   onClick={handleCreateTicket}
-                  disabled={ticketCreated || isTicketLoading}
+                  disabled={ticketCreated || isTicketLoading || !hasRole(['admin', 'technician'])}
                   className="px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold text-xs tracking-wide shadow-md flex items-center space-x-1.5 disabled:opacity-50"
                 >
                   <Wrench className="w-4 h-4" />

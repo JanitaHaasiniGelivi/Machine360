@@ -7,7 +7,7 @@ from typing import List, Optional
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, status
 from sqlalchemy.orm import Session
-from app.api.deps import get_db, get_current_user_optional
+from app.api.deps import get_db, get_current_user_optional, require_production_writer
 from app.ml.inference import model_engine
 from app.models.entities import PredictionResult, FactoryAsset, AuditEvent, User
 from app.schemas.schemas import (
@@ -26,6 +26,9 @@ def run_prediction(
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional),
 ):
+    if save_to_db:
+        require_production_writer(current_user)
+
     # Validate asset if specified
     if input_data.asset_id:
         asset = db.query(FactoryAsset).filter(FactoryAsset.id == input_data.asset_id).first()
@@ -89,14 +92,14 @@ def run_prediction(
 async def run_batch_prediction(
     file: UploadFile = File(..., description="CSV file with AI4I sensor columns"),
 ):
-    if not file.filename.endswith(".csv"):
+    if not (file.filename or "").lower().endswith(".csv"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Uploaded file must be a CSV format document.",
         )
 
     # Read contents with upload size safety (limit to 10MB)
-    contents = await file.read()
+    contents = await file.read(10 * 1024 * 1024 + 1)
     if len(contents) > 10 * 1024 * 1024:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
@@ -112,12 +115,36 @@ async def run_batch_prediction(
             detail=f"Unable to parse CSV document: {str(e)}",
         )
 
+    if df.empty:
+        raise HTTPException(status_code=422, detail="CSV must contain at least one data row")
+    if df.columns.duplicated().any() or any('.' in str(c) and str(c).rsplit('.', 1)[-1].isdigit() and str(c).rsplit('.', 1)[0] in df.columns for c in df.columns):
+        raise HTTPException(status_code=422, detail="CSV column names must be unique")
+
     # Row count limit
     if len(df) > 10000:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Batch prediction maximum row limit is 10,000 rows.",
         )
+
+    # Apply the same sensor limits as single inference before calling sklearn.
+    columns = {
+        "Type": "quality_type", "Air temperature [K]": "air_temperature_k",
+        "Process temperature [K]": "process_temperature_k",
+        "Rotational speed [rpm]": "rotational_speed_rpm", "Torque [Nm]": "torque_nm",
+        "Tool wear [min]": "tool_wear_min",
+    }
+    missing = [c for c in columns if c not in df.columns]
+    if missing:
+        raise HTTPException(status_code=422, detail=f"Missing predictor columns: {missing}")
+    import math
+    for index, row in enumerate(df.to_dict(orient="records"), start=1):
+        try:
+            validated = PredictionInput.model_validate({dest: row[src] for src, dest in columns.items()})
+            if not all(math.isfinite(getattr(validated, key)) for key in columns.values() if key != "quality_type"):
+                raise ValueError("non-finite sensor reading")
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=422, detail=f"Invalid sensor values in CSV data row {index}")
 
     try:
         batch_result = model_engine.predict_batch(df)

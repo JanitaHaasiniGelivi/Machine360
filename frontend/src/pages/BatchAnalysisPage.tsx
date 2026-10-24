@@ -19,6 +19,7 @@ export const BatchAnalysisPage: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
+      setBatchData(null);
       setError(null);
     }
   };
@@ -27,8 +28,9 @@ export const BatchAnalysisPage: React.FC = () => {
     e.preventDefault();
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile.name.endsWith('.csv')) {
+      if (droppedFile.name.toLowerCase().endsWith('.csv')) {
         setFile(droppedFile);
+        setBatchData(null);
         setError(null);
       } else {
         setError('Please drop a valid CSV document.');

@@ -6,6 +6,7 @@ and generates explainable feature contributions and technician checklists.
 import json
 import math
 import os
+from threading import RLock
 from typing import Any, Dict, List, Tuple
 import joblib
 import numpy as np
@@ -52,25 +53,39 @@ DATASET_STDS = {
 }
 
 
+class ModelUnavailableError(RuntimeError):
+    """Required trained artifacts cannot be loaded."""
+
+
 class ModelEngine:
     def __init__(self, artifacts_dir: str = settings.ML_ARTIFACTS_DIR):
         self.artifacts_dir = artifacts_dir
         self.pipeline = None
         self.fault_models = None
         self.metadata = None
-        self.load_artifacts()
+        self._load_lock = RLock()
 
     def load_artifacts(self):
+        with self._load_lock:
+            if self.pipeline is not None:
+                return
+            try:
+                self._load_artifacts()
+            except Exception as exc:
+                self.pipeline = self.fault_models = self.metadata = None
+                raise ModelUnavailableError("Prediction models are unavailable") from exc
+
+    def _load_artifacts(self):
         pipeline_path = os.path.join(self.artifacts_dir, "model_pipeline.joblib")
         fault_path = os.path.join(self.artifacts_dir, "fault_models.joblib")
         metadata_path = os.path.join(self.artifacts_dir, "model_metadata.json")
 
-        if not os.path.exists(pipeline_path) or not os.path.exists(metadata_path):
+        if not all(os.path.isfile(p) for p in (pipeline_path, fault_path, metadata_path)):
             raise FileNotFoundError(
                 f"Model artifacts not found in {self.artifacts_dir}. Run ml/scripts/train.py first."
             )
 
-        self.pipeline = joblib.load(pipeline_path)
+        pipeline = joblib.load(pipeline_path)
         if os.path.exists(fault_path):
             self.fault_models = joblib.load(fault_path)
         else:
@@ -78,6 +93,7 @@ class ModelEngine:
 
         with open(metadata_path, "r") as f:
             self.metadata = json.load(f)
+        self.pipeline = pipeline
 
     def calculate_derived_physics(
         self, air_temp_k: float, proc_temp_k: float, rpm: float, torque_nm: float
@@ -309,17 +325,21 @@ class ModelEngine:
         rows = []
         fault_counts = {"TWF": 0, "HDF": 0, "PWF": 0, "OSF": 0, "RNF": 0}
 
+        # Predict once per fault model, rather than once per model per CSV row.
+        fault_predictions = {}
+        for code, model in self.fault_models.items():
+            try:
+                fault_predictions[code] = model.predict_proba(X)[:, 1]
+            except Exception as exc:
+                raise ModelUnavailableError("Fault model inference failed") from exc
+
         for idx, (p, prob, (_, r)) in enumerate(zip(preds, probs, X.iterrows())):
             predicted_faults = []
             # Check fault conditions
-            for fault_code, model in self.fault_models.items():
-                try:
-                    f_prob = float(model.predict_proba(pd.DataFrame([r]))[0][1])
-                    if f_prob >= 0.5:
-                        predicted_faults.append(fault_code)
-                        fault_counts[fault_code] += 1
-                except Exception:
-                    pass
+            for fault_code, probabilities in fault_predictions.items():
+                if float(probabilities[idx]) >= 0.5:
+                    predicted_faults.append(fault_code)
+                    fault_counts[fault_code] += 1
 
             risk = "CRITICAL" if prob >= 0.7 else ("ELEVATED" if p else "LOW")
             rows.append(

@@ -1,3 +1,4 @@
+from app.api.deps import require_production_writer
 """Maintenance Work Orders and Ticketing API
 Provides ticket lifecycle management, status workflows, technician assignment, and audit trails.
 """
@@ -79,7 +80,7 @@ def list_tickets(
     return results
 
 
-@router.post("/tickets", response_model=TicketResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/tickets", response_model=TicketResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_production_writer)])
 def create_ticket(
     ticket_in: TicketCreate,
     db: Session = Depends(get_db),
@@ -169,7 +170,7 @@ def get_ticket(ticket_id: int, db: Session = Depends(get_db)):
     )
 
 
-@router.patch("/tickets/{ticket_id}", response_model=TicketResponse)
+@router.patch("/tickets/{ticket_id}", response_model=TicketResponse, dependencies=[Depends(require_production_writer)])
 def update_ticket(
     ticket_id: int,
     ticket_update: TicketUpdate,
@@ -230,7 +231,7 @@ def update_ticket(
     )
 
 
-@router.post("/tickets/{ticket_id}/actions", response_model=MaintenanceActionResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/tickets/{ticket_id}/actions", response_model=MaintenanceActionResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_production_writer)])
 def add_ticket_action(
     ticket_id: int,
     action_in: MaintenanceActionCreate,

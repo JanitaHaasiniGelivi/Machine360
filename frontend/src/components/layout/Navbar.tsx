@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { Sun, Moon, Bell, LogOut, ShieldCheck, Activity } from 'lucide-react';
@@ -73,7 +74,7 @@ export const Navbar: React.FC = () => {
         ) : (
           <div className="flex items-center space-x-2 pl-3 border-l border-slate-800">
             <ShieldCheck className="w-4 h-4 text-slate-400" />
-            <span className="text-xs font-mono text-slate-400">DEMO ACCESS</span>
+            <Link to="/login" className="text-sm text-teal-300 hover:underline">Sign in</Link>
           </div>
         )}
       </div>

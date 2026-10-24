@@ -3,9 +3,9 @@ Calculates preventive vs reactive maintenance expenditure, downtime losses, and 
 """
 
 from typing import List, Dict, Any
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from app.api.deps import get_db
+from app.api.deps import get_db, get_current_user_optional, require_production_writer
 from app.models.entities import CostScenario
 from app.schemas.schemas import CostSimulateRequest, CostSimulateResponse
 
@@ -55,7 +55,11 @@ def calculate_scenario_costs(data: CostSimulateRequest) -> Dict[str, Any]:
 
 
 @router.post("/costs/simulate", response_model=CostSimulateResponse)
-def simulate_cost(data: CostSimulateRequest, db: Session = Depends(get_db)):
+def simulate_cost(data: CostSimulateRequest, db: Session = Depends(get_db),
+                  save_to_db: bool = Query(False),
+                  current_user = Depends(get_current_user_optional)):
+    if save_to_db:
+        require_production_writer(current_user)
     calc = calculate_scenario_costs(data)
 
     # Save scenario
@@ -71,8 +75,9 @@ def simulate_cost(data: CostSimulateRequest, db: Session = Depends(get_db)):
         total_reactive_cost=calc["reactive_total"],
         net_savings=calc["net_savings"],
     )
-    db.add(scenario)
-    db.commit()
+    if save_to_db:
+        db.add(scenario)
+        db.commit()
 
     formula = (
         "Preventive Cost = Inspection + Planned Labor + Spare Part + (Planned Downtime 20% × Hourly Cost)\n"
