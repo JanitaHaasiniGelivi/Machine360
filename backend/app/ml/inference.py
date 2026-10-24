@@ -325,17 +325,21 @@ class ModelEngine:
         rows = []
         fault_counts = {"TWF": 0, "HDF": 0, "PWF": 0, "OSF": 0, "RNF": 0}
 
+        # Predict once per fault model, rather than once per model per CSV row.
+        fault_predictions = {}
+        for code, model in self.fault_models.items():
+            try:
+                fault_predictions[code] = model.predict_proba(X)[:, 1]
+            except Exception as exc:
+                raise ModelUnavailableError("Fault model inference failed") from exc
+
         for idx, (p, prob, (_, r)) in enumerate(zip(preds, probs, X.iterrows())):
             predicted_faults = []
             # Check fault conditions
-            for fault_code, model in self.fault_models.items():
-                try:
-                    f_prob = float(model.predict_proba(pd.DataFrame([r]))[0][1])
-                    if f_prob >= 0.5:
-                        predicted_faults.append(fault_code)
-                        fault_counts[fault_code] += 1
-                except Exception:
-                    pass
+            for fault_code, probabilities in fault_predictions.items():
+                if float(probabilities[idx]) >= 0.5:
+                    predicted_faults.append(fault_code)
+                    fault_counts[fault_code] += 1
 
             risk = "CRITICAL" if prob >= 0.7 else ("ELEVATED" if p else "LOW")
             rows.append(
