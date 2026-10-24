@@ -16,7 +16,7 @@ import {
   ModelMetrics,
 } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').trim().replace(/\/+$/, '');
 
 class ApiClient {
   private getHeaders(isJson = true): HeadersInit {
@@ -38,7 +38,7 @@ class ApiClient {
     if (!response.ok) {
       let errorMsg = `HTTP Error ${response.status}`;
       try {
-        const errData = await response.json();
+        const errData = await response.clone().json();
         if (errData && errData.detail) {
           if (typeof errData.detail === 'string') {
             errorMsg = errData.detail;
@@ -140,7 +140,7 @@ class ApiClient {
   }
 
   // --- PREDICTIONS ---
-  async predict(input: PredictionInput, saveToDb = true): Promise<PredictionResponse> {
+  async predict(input: PredictionInput, saveToDb = !!localStorage.getItem('mm360_token')): Promise<PredictionResponse> {
     return this.request(`/predict?save_to_db=${saveToDb}`, {
       method: 'POST',
       headers: this.getHeaders(),

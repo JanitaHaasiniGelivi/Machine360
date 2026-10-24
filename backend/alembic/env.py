@@ -20,7 +20,7 @@ if config.config_file_name is not None:
 target_db_url = settings.DATABASE_URL
 if target_db_url.startswith("postgres://"):
     target_db_url = target_db_url.replace("postgres://", "postgresql://", 1)
-config.set_main_option("sqlalchemy.url", target_db_url)
+config.set_main_option("sqlalchemy.url", target_db_url.replace("%", "%%"))
 
 target_metadata = Base.metadata
 

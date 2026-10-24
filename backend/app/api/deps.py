@@ -83,3 +83,16 @@ def require_role(roles: list[str]):
         return current_user
 
     return role_checker
+
+
+def require_production_writer(
+    current_user: Optional[User] = Depends(get_current_user_optional),
+):
+    """Local demo writes remain available; production writes require a staff role."""
+    import os
+    if settings.ENVIRONMENT == 'production' or os.getenv('VERCEL') == '1':
+        if current_user is None:
+            raise HTTPException(status_code=401, detail='Sign in to modify records')
+        if current_user.role not in ('admin', 'technician'):
+            raise HTTPException(status_code=403, detail='A staff role is required to modify records')
+    return current_user

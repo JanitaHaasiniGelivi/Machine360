@@ -7,7 +7,7 @@ from typing import List, Optional
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, status
 from sqlalchemy.orm import Session
-from app.api.deps import get_db, get_current_user_optional
+from app.api.deps import get_db, get_current_user_optional, require_production_writer
 from app.ml.inference import model_engine
 from app.models.entities import PredictionResult, FactoryAsset, AuditEvent, User
 from app.schemas.schemas import (
@@ -26,6 +26,9 @@ def run_prediction(
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional),
 ):
+    if save_to_db:
+        require_production_writer(current_user)
+
     # Validate asset if specified
     if input_data.asset_id:
         asset = db.query(FactoryAsset).filter(FactoryAsset.id == input_data.asset_id).first()

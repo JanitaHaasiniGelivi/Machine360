@@ -3,6 +3,10 @@ Aggregates enterprise KPIs, asset health distributions, tickets, and active aler
 """
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from app.db.session import engine
+from app.core.config import settings
 from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.ml.inference import model_engine
@@ -14,13 +18,27 @@ router = APIRouter(prefix="", tags=["Dashboard & System Health"])
 
 @router.get("/health")
 def health_check():
-    return {
-        "status": "healthy",
+    database_ok = False
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+            # Connectivity alone does not prove migrations have been applied.
+            connection.execute(text("SELECT id FROM users LIMIT 1"))
+        database_ok = True
+    except Exception:
+        pass
+    try:
+        model_engine.load_artifacts()
+    except Exception:
+        pass
+    ready = database_ok and model_engine.pipeline is not None
+    return JSONResponse(status_code=200 if ready else 503, content={
+        "status": "healthy" if ready else "degraded",
         "service": "MachineMind 360 Backend API",
-        "version": "1.0.0",
+        "version": settings.VERSION,
         "model_loaded": model_engine.pipeline is not None,
-        "database": "connected",
-    }
+        "database": "connected" if database_ok else "unavailable",
+    })
 
 
 @router.get("/dashboard/summary", response_model=DashboardSummary)

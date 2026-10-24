@@ -1,3 +1,4 @@
+from app.api.deps import require_production_writer
 """Factory Asset and Machine Management API
 Supports machine CRUD, QR code metadata, observation records, and history.
 """
@@ -46,7 +47,7 @@ def list_machines(
     return query.order_by(FactoryAsset.id.desc()).all()
 
 
-@router.post("/machines", response_model=AssetResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/machines", response_model=AssetResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_production_writer)])
 def create_machine(
     asset_in: AssetCreate,
     db: Session = Depends(get_db),
@@ -101,7 +102,7 @@ def get_machine(machine_id: int, db: Session = Depends(get_db)):
     return asset
 
 
-@router.patch("/machines/{machine_id}", response_model=AssetResponse)
+@router.patch("/machines/{machine_id}", response_model=AssetResponse, dependencies=[Depends(require_production_writer)])
 def update_machine(
     machine_id: int,
     asset_update: AssetUpdate,
@@ -135,7 +136,7 @@ def update_machine(
     return asset
 
 
-@router.delete("/machines/{machine_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/machines/{machine_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_production_writer)])
 def delete_machine(
     machine_id: int,
     db: Session = Depends(get_db),
@@ -186,7 +187,7 @@ def get_machine_observations(
     return observations
 
 
-@router.post("/observations", response_model=ObservationResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/observations", response_model=ObservationResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_production_writer)])
 def create_observation(
     obs_in: ObservationCreate,
     db: Session = Depends(get_db),
