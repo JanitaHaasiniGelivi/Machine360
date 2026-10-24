@@ -11,6 +11,11 @@ Write-Host " API Docs:    http://127.0.0.1:8000/docs" -ForegroundColor Cyan
 Write-Host " Frontend:    http://127.0.0.1:5173" -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 
+if (-not (Test-Path "$RootDir\backend\.venv\Scripts\python.exe")) {
+    Write-Error "Backend virtual environment is missing or incompatible. Run .\scripts\setup_windows.ps1 first."
+    exit 1
+}
+
 # Launch Backend in new window
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$RootDir\backend'; & .\.venv\Scripts\Activate.ps1; `$env:PYTHONPATH='.'; python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000"
 

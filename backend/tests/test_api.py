@@ -3,20 +3,24 @@ MachineMind 360 - Pytest Suite
 """
 
 import os
+import shutil
+import tempfile
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 # Configure test environment
-os.environ["DATABASE_URL"] = "sqlite:////tmp/test_machinemind360.db"
+TEST_DATA_DIR = tempfile.mkdtemp(prefix="machinemind360-pytest-")
+TEST_DB_PATH = os.path.join(TEST_DATA_DIR, "test.db")
+os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH}"
 os.environ["DEBUG"] = "true"
 
 from app.main import app
 from app.db.session import Base, get_db
 from app.core.security import create_access_token
 
-TEST_DATABASE_URL = "sqlite:////tmp/test_machinemind360.db"
+TEST_DATABASE_URL = f"sqlite:///{TEST_DB_PATH}"
 test_engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
@@ -26,8 +30,7 @@ def setup_test_db():
     Base.metadata.create_all(bind=test_engine)
     yield
     Base.metadata.drop_all(bind=test_engine)
-    if os.path.exists("/tmp/test_machinemind360.db"):
-        os.remove("/tmp/test_machinemind360.db")
+    shutil.rmtree(TEST_DATA_DIR, ignore_errors=True)
 
 
 def override_get_db():
@@ -201,6 +204,38 @@ def test_invalid_prediction_inputs():
     }
     res = client.post("/api/v1/predict", json=bad_temp)
     assert res.status_code == 422
+
+
+def test_saved_model_single_batch_parity_and_prediction_persistence():
+    payload = {
+        "quality_type": "M", "air_temperature_k": 298.1,
+        "process_temperature_k": 308.6, "rotational_speed_rpm": 1551.0,
+        "torque_nm": 42.8, "tool_wear_min": 12.0,
+    }
+    single = client.post("/api/v1/predict", json=payload)
+    assert single.status_code == 200
+    prediction = single.json()
+    assert prediction["id"] is not None
+
+    import io
+    csv = ("Type,Air temperature [K],Process temperature [K],Rotational speed [rpm],Torque [Nm],Tool wear [min]\n"
+           "M,298.1,308.6,1551,42.8,12\n").encode()
+    batch = client.post("/api/v1/predict/batch", files={"file": ("readings.csv", io.BytesIO(csv), "text/csv")})
+    assert batch.status_code == 200
+    row = batch.json()["rows"][0]
+    assert row["prediction"] is prediction["machine_failure_prediction"]
+    assert row["probability"] == prediction["failure_probability"]
+
+    stored = client.get("/api/v1/predictions?limit=1")
+    assert stored.status_code == 200
+    assert stored.json()[0]["id"] == prediction["id"]
+
+
+def test_batch_rejects_missing_predictor_columns():
+    import io
+    csv = b"Type,Air temperature [K]\nM,298.1\n"
+    response = client.post("/api/v1/predict/batch", files={"file": ("bad.csv", io.BytesIO(csv), "text/csv")})
+    assert response.status_code == 422
 
 
 def test_maintenance_tickets():

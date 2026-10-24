@@ -32,6 +32,9 @@ The script will automatically:
 5. Seed initial demo accounts and factory assets into `machinemind360.db`.
 6. Install frontend dependencies (`frontend/node_modules`).
 
+If `backend/.venv` was created on another operating system, the Windows setup
+script detects the incompatible environment and recreates it automatically.
+
 ---
 
 ## 3. Launching the Local Full-Stack Application

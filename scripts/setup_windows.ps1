@@ -29,7 +29,11 @@ Write-Host "   Found Node $(node -v) and npm $(npm -v)"
 # 3. Setup Backend Virtual Environment
 Write-Host "-> Setting up Python virtual environment..." -ForegroundColor Yellow
 Set-Location "$RootDir\backend"
-if (-not (Test-Path ".venv")) {
+if ((Test-Path ".venv") -and -not (Test-Path ".venv\Scripts\python.exe")) {
+    Write-Host "   Existing virtual environment is not a Windows environment; recreating it..." -ForegroundColor Yellow
+    Remove-Item -Recurse -Force ".venv"
+}
+if (-not (Test-Path ".venv\Scripts\python.exe")) {
     python -m venv .venv
 }
 & .\.venv\Scripts\Activate.ps1
